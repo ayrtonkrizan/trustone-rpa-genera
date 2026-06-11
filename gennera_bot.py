@@ -28,10 +28,31 @@ class GenneraBot:
     def setup(self):
         logger.info("Iniciando navegador...")
         self.playwright = sync_playwright().start()
-        self.browser = self.playwright.chromium.launch(
-            headless= self.config.HEADLESS,
-            args=['--start-maximized']
-        )
+        
+        # Detectar se está rodando como executável empacotado
+        import sys
+        import os
+        
+        browser_args = {
+            'headless': self.config.HEADLESS,
+            'args': ['--start-maximized']
+        }
+        
+        # Se executável PyInstaller, usar chromium empacotado
+        if getattr(sys, 'frozen', False):
+            # Caminho do executável
+            bundle_dir = Path(sys._MEIPASS)
+            chromium_path = bundle_dir / 'playwright_browsers' / 'chromium'
+            
+            if chromium_path.exists():
+                logger.info(f"Usando Chromium empacotado: {chromium_path}")
+                # Playwright vai procurar em PLAYWRIGHT_BROWSERS_PATH
+                os.environ['PLAYWRIGHT_BROWSERS_PATH'] = str(bundle_dir / 'playwright_browsers')
+            else:
+                logger.warning("Chromium empacotado não encontrado, usando instalação do sistema")
+        
+        self.browser = self.playwright.chromium.launch(**browser_args)
+        
         self.context = self.browser.new_context(
             viewport=None,
             accept_downloads=True

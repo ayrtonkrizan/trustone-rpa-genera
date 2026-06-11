@@ -38,7 +38,21 @@ def build():
     
     print("Iniciando compilação do executável...")
     
-    PyInstaller.__main__.run([
+    # Detectar caminho dos browsers do Playwright
+    import sys
+    import os
+    from pathlib import Path
+    
+    # Encontrar diretório de browsers do Playwright
+    if current_os == "Windows":
+        playwright_browsers = Path(os.environ.get('USERPROFILE', '')) / 'AppData' / 'Local' / 'ms-playwright'
+    else:
+        playwright_browsers = Path.home() / 'Library' / 'Caches' / 'ms-playwright'
+    
+    print(f"Procurando browsers Playwright em: {playwright_browsers}")
+    
+    # Preparar argumentos do PyInstaller
+    pyinstaller_args = [
         'main.py',
         '--onefile',
         '--name=GenneraRPA',
@@ -49,7 +63,27 @@ def build():
         '--hidden-import=playwright',
         '--hidden-import=dotenv',
         '--collect-all=playwright',
-    ])
+    ]
+    
+    # Adicionar browsers se existirem
+    if playwright_browsers.exists():
+        chromium_dir = None
+        for browser_dir in playwright_browsers.iterdir():
+            if browser_dir.is_dir() and 'chromium' in browser_dir.name.lower():
+                chromium_dir = browser_dir
+                break
+        
+        if chromium_dir:
+            separator = ';' if current_os == "Windows" else ':'
+            pyinstaller_args.append(f'--add-data={chromium_dir}{separator}playwright_browsers/chromium')
+            print(f"✓ Chromium encontrado e será incluído: {chromium_dir.name}")
+        else:
+            print("⚠ Chromium não encontrado. Execute 'playwright install chromium' antes de compilar.")
+    else:
+        print("⚠ Diretório de browsers Playwright não encontrado.")
+        print("   Execute 'playwright install chromium' antes de compilar.")
+    
+    PyInstaller.__main__.run(pyinstaller_args)
     
     print("\n" + "="*60)
     print("COMPILAÇÃO CONCLUÍDA!")

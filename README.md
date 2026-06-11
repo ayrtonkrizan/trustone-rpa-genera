@@ -123,6 +123,28 @@ dist/
 
 ## 🖥️ Deploy em Produção (Windows Server)
 
+### ⚠️ IMPORTANTE: Instalação do Navegador
+
+O executável precisa do Chromium para funcionar. Escolha uma opção:
+
+#### **Opção A: Executável com Chromium Incluído** ⭐ Recomendado
+
+Ao compilar no Windows, execute ANTES:
+```bash
+python -m playwright install chromium
+python build.py  # Chromium será incluído automaticamente
+```
+
+Resultado: Executável maior (~300MB) mas totalmente portátil.
+
+#### **Opção B: Instalar Chromium no Servidor**
+
+1. Copie `install_browsers.ps1` para o servidor
+2. Execute (botão direito → "Executar com PowerShell")
+3. Aguarde download (~150MB)
+
+Resultado: Executável menor (~30MB) mas precisa Python no servidor.
+
 ### 1. Preparar o Servidor
 
 Crie a estrutura de pastas:
