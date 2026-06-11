@@ -25,10 +25,15 @@ def build():
         print("3. Use uma VM Windows")
         print("=" * 60)
         
-        resposta = input("\nDeseja continuar mesmo assim? (s/N): ")
-        if resposta.lower() != 's':
-            print("Compilação cancelada.")
-            return
+        # Em ambiente CI/CD, continuar automaticamente
+        import os
+        if not os.getenv('CI'):
+            resposta = input("\nDeseja continuar mesmo assim? (s/N): ")
+            if resposta.lower() != 's':
+                print("Compilação cancelada.")
+                return
+        else:
+            print("\nAmbiente CI/CD detectado, continuando automaticamente...")
         print()
     
     print("Iniciando compilação do executável...")
