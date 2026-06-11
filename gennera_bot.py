@@ -29,7 +29,6 @@ class GenneraBot:
         logger.info("Iniciando navegador...")
         self.playwright = sync_playwright().start()
         
-        # Detectar se está rodando como executável empacotado
         import sys
         import os
         
@@ -38,20 +37,51 @@ class GenneraBot:
             'args': ['--start-maximized']
         }
         
-        # Se executável PyInstaller, usar chromium empacotado
-        if getattr(sys, 'frozen', False):
-            # Caminho do executável
-            bundle_dir = Path(sys._MEIPASS)
-            chromium_path = bundle_dir / 'playwright_browsers' / 'chromium'
+        # Verificar se há caminho customizado no .env
+        chrome_executable = None
+        if self.config.CHROME_PATH and os.path.exists(self.config.CHROME_PATH):
+            chrome_executable = self.config.CHROME_PATH
+            logger.info(f"✓ Usando Chrome customizado (.env): {chrome_executable}")
+        else:
+            # Tentar encontrar Chrome instalado no sistema
+            chrome_paths = [
+                r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+                r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+                os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
+                os.path.expandvars(r"%PROGRAMFILES%\Google\Chrome\Application\chrome.exe"),
+                os.path.expandvars(r"%PROGRAMFILES(X86)%\Google\Chrome\Application\chrome.exe"),
+            ]
             
-            if chromium_path.exists():
-                logger.info(f"Usando Chromium empacotado: {chromium_path}")
-                # Playwright vai procurar em PLAYWRIGHT_BROWSERS_PATH
-                os.environ['PLAYWRIGHT_BROWSERS_PATH'] = str(bundle_dir / 'playwright_browsers')
-            else:
-                logger.warning("Chromium empacotado não encontrado, usando instalação do sistema")
+            for chrome_path in chrome_paths:
+                if os.path.exists(chrome_path):
+                    chrome_executable = chrome_path
+                    logger.info(f"✓ Chrome do sistema encontrado: {chrome_path}")
+                    break
         
-        self.browser = self.playwright.chromium.launch(**browser_args)
+        # Se encontrou Chrome, usar ele
+        if chrome_executable:
+            browser_args['executable_path'] = chrome_executable
+            logger.info("Usando Google Chrome instalado no sistema")
+        else:
+            # Tentar usar Chromium empacotado (se executável PyInstaller)
+            if getattr(sys, 'frozen', False):
+                bundle_dir = Path(sys._MEIPASS)
+                chromium_path = bundle_dir / 'playwright_browsers' / 'chromium'
+                
+                if chromium_path.exists():
+                    logger.info(f"Usando Chromium empacotado: {chromium_path}")
+                    os.environ['PLAYWRIGHT_BROWSERS_PATH'] = str(bundle_dir / 'playwright_browsers')
+                else:
+                    logger.warning("⚠ Chrome não encontrado no sistema e Chromium não empacotado")
+                    logger.warning("⚠ Tentando usar Playwright padrão...")
+        
+        try:
+            self.browser = self.playwright.chromium.launch(**browser_args)
+        except Exception as e:
+            logger.error(f"Erro ao iniciar navegador: {e}")
+            logger.info("Tentando sem executable_path...")
+            browser_args.pop('executable_path', None)
+            self.browser = self.playwright.chromium.launch(**browser_args)
         
         self.context = self.browser.new_context(
             viewport=None,
@@ -59,7 +89,7 @@ class GenneraBot:
         )
         self.page = self.context.new_page()
         self.page.set_default_timeout(self.config.TIMEOUT)
-        logger.info("Navegador iniciado com sucesso")
+        logger.info("✓ Navegador iniciado com sucesso")
     
     def login(self):
         logger.info("=== FAZENDO LOGIN VIA API ===")

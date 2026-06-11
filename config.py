@@ -22,6 +22,7 @@ class Config:
     
     HEADLESS = os.getenv("HEADLESS", "true").lower() == "true"
     TIMEOUT = int(os.getenv("TIMEOUT", "30000"))
+    CHROME_PATH = os.getenv("CHROME_PATH", "")  # Caminho customizado para Chrome (opcional)
     
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
     LOG_FILE = os.getenv("LOG_FILE", "gennera_rpa.log")
