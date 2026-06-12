@@ -27,14 +27,32 @@ class GenneraBot:
     
     def setup(self):
         logger.info("Iniciando navegador...")
-        self.playwright = sync_playwright().start()
         
         import sys
         import os
+        import tempfile
+        
+        # Configurar diretório temporário para Playwright
+        # Evita erro ENOENT ao criar diretórios temporários
+        temp_dir = Path(tempfile.gettempdir()) / "playwright_temp"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        os.environ['PLAYWRIGHT_BROWSERS_PATH'] = '0'  # Usar cache do sistema
+        os.environ['TMPDIR'] = str(temp_dir)
+        os.environ['TEMP'] = str(temp_dir)
+        os.environ['TMP'] = str(temp_dir)
+        
+        logger.info(f"Diretório temporário: {temp_dir}")
+        
+        self.playwright = sync_playwright().start()
         
         browser_args = {
             'headless': self.config.HEADLESS,
-            'args': ['--start-maximized']
+            'args': [
+                '--start-maximized',
+                '--no-sandbox',
+                '--disable-dev-shm-usage',
+                f'--user-data-dir={temp_dir / "chrome_profile"}'
+            ]
         }
         
         # Verificar se há caminho customizado no .env
@@ -79,9 +97,24 @@ class GenneraBot:
             self.browser = self.playwright.chromium.launch(**browser_args)
         except Exception as e:
             logger.error(f"Erro ao iniciar navegador: {e}")
-            logger.info("Tentando sem executable_path...")
-            browser_args.pop('executable_path', None)
-            self.browser = self.playwright.chromium.launch(**browser_args)
+            
+            # Tentar sem executable_path
+            if 'executable_path' in browser_args:
+                logger.info("Tentando sem executable_path...")
+                browser_args.pop('executable_path', None)
+                try:
+                    self.browser = self.playwright.chromium.launch(**browser_args)
+                except Exception as e2:
+                    logger.error(f"Erro novamente: {e2}")
+                    
+                    # Última tentativa: modo mínimo
+                    logger.info("Tentando modo mínimo (sem argumentos extras)...")
+                    minimal_args = {
+                        'headless': self.config.HEADLESS
+                    }
+                    self.browser = self.playwright.chromium.launch(**minimal_args)
+            else:
+                raise
         
         self.context = self.browser.new_context(
             viewport=None,
